@@ -1,11 +1,11 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
-	"version": "1.0.0",
-	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"id": "page-stats",
+	"name": "Page Stats",
+	"version": "0.1.0",
+	"minAppVersion": "1.1.0",
+	"description": "Shows statistics like word count, bold word count, hightlighted word count, etc. of the current page.",
+	"author": "dom8509",
+	"authorUrl": "https://github.com/dom8509",
+	"fundingUrl": "https://www.buymeacoffee.com/dom8509",
 	"isDesktopOnly": false
 }
