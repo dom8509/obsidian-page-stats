@@ -91,11 +91,11 @@ class PageStatsView extends ItemView {
 
 		this.icon = "file-pie-chart";
 
-		renderView(this.getPageStats(), this.containerEl);
+		renderView(await this.getPageStats(), this.containerEl);
 
 		this.registerEvent(
-			this.app.workspace.on("file-open", () => {
-				renderView(this.getPageStats(), this.containerEl);
+			this.app.workspace.on("file-open", async () => {
+				renderView(await this.getPageStats(), this.containerEl);
 			})
 		);
 	}
@@ -113,16 +113,16 @@ class PageStatsView extends ItemView {
 	}
 
 	getBoldBlocks(content: string): Array<string> {
-		const regex = /\*{2}(?!\s)([\s\S]*?)(?=\*{2})/gm;
+		const regex = /\*\*(.*?)\*\*/gm;
 		return content.match(regex) || [];
 	}
 
 	getHighlightedBlocks(content: string): Array<string> {
-		const regex = /\={2}(?!\s)([\s\S]*?)(?=\={2})/gm;
+		const regex = /==(.*?)==/gm;
 		return content.match(regex) || [];
 	}
 
-	getPageStats(): PageStats {
+	async getPageStats(): Promise<PageStats> {
 		const pageStats = createPageStats();
 		const activeFile: TFile | null = this.app.workspace.getActiveFile();
 
@@ -131,18 +131,43 @@ class PageStatsView extends ItemView {
 		}
 
 		console.log("Loading File Content");
-		this.app.vault
-			.read(activeFile)
-			.then((e) => {
-				console.log("Number of Words: " + this.getWords(this.getCiteBlocks(e).join(" ")).length)
-				console.log("Number of Bold Words: " + this.getWords(this.getBoldBlocks(e).join(" ")).length)
-				console.log("Number of Highlighted Words: " + this.getWords(this.getHighlightedBlocks(e).join(" ")).length)
-				console.log("Number of Highlights: " + this.getCiteBlocks(e).length)
-				console.log("Number of Bold Texts: " + this.getBoldBlocks(e).length)
-				console.log("Number of Highlighted Texts: " + this.getHighlightedBlocks(e).length)
-			});
+		// this.app.vault.read(activeFile).then((e) => {
+		// 	console.log(
+		// 		"Number of Highlights: " + this.getCiteBlocks(e).length
+		// 	);
+		// 	console.log(
+		// 		"Number of Bold Texts: " + this.getBoldBlocks(e).length
+		// 	);
+		// 	console.log(
+		// 		"Number of Highlighted Texts: " +
+		// 			this.getHighlightedBlocks(e).length
+		// 	);
+		// 	console.log(
+		// 		"Number of Words: " +
+		// 			this.getWords(this.getCiteBlocks(e).join(" ")).length
+		// 	);
+		// 	console.log(
+		// 		"Number of Bold Words: " +
+		// 			this.getWords(this.getBoldBlocks(e).join(" ")).length
+		// 	);
+		// 	console.log(
+		// 		"Number of Highlighted Words: " +
+		// 			this.getWords(this.getHighlightedBlocks(e).join(" ")).length
+		// 	);
+		// });
 
-		// TODO: enter code here
+		const content = await this.app.vault.read(activeFile);
+
+		pageStats.num_blocks_cite = this.getCiteBlocks(content).length;
+		pageStats.num_words_cite = this.getWords(
+			this.getCiteBlocks(content).join(" ")
+		).length;
+		pageStats.num_words_bold = this.getWords(
+			this.getBoldBlocks(content).join(" ")
+		).length;
+		pageStats.num_words_highlighted = this.getWords(
+			this.getHighlightedBlocks(content).join(" ")
+		).length;
 
 		return pageStats;
 	}
@@ -152,99 +177,227 @@ class PageStatsView extends ItemView {
 	}
 }
 
+function renderSumIcon(node: Element): Element {
+	const iconSvg = document.createElementNS(
+		"http://www.w3.org/2000/svg",
+		"svg"
+	);
+	const iconPath = document.createElementNS(
+		"http://www.w3.org/2000/svg",
+		"path"
+	);
+
+	//<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sigma"><path d="M18 7V4H6l6 8-6 8h12v-3"/></svg>
+	iconSvg.setAttribute("fill", "none");
+	iconSvg.setAttribute("width", "24");
+	iconSvg.setAttribute("height", "24");
+	iconSvg.setAttribute("viewBox", "0 0 24 24");
+	iconSvg.setAttribute("stroke", "currentColor");
+	iconSvg.classList.add("svg-icon");
+
+	iconPath.setAttribute("d", "M18 7V4H6l6 8-6 8h12v-3");
+	iconPath.setAttribute("stroke-linecap", "round");
+	iconPath.setAttribute("stroke-linejoin", "round");
+	iconPath.setAttribute("stroke-width", "2");
+
+	iconSvg.appendChild(iconPath);
+
+	return node.appendChild(iconSvg);
+}
+
+function renderPercentIcon(node: Element): Element {
+	const iconSvg = document.createElementNS(
+		"http://www.w3.org/2000/svg",
+		"svg"
+	);
+	iconSvg.setAttribute("fill", "none");
+	iconSvg.setAttribute("width", "24");
+	iconSvg.setAttribute("height", "24");
+	iconSvg.setAttribute("viewBox", "0 0 24 24");
+	iconSvg.setAttribute("stroke", "currentColor");
+	iconSvg.setAttribute("stroke-linecap", "round");
+	iconSvg.setAttribute("stroke-linejoin", "round");
+	iconSvg.setAttribute("stroke-width", "2");
+	iconSvg.classList.add("svg-icon");
+
+	const iconLine = document.createElementNS(
+		"http://www.w3.org/2000/svg",
+		"line"
+	);
+	iconLine.setAttribute("x1", "19");
+	iconLine.setAttribute("x2", "5");
+	iconLine.setAttribute("y1", "5");
+	iconLine.setAttribute("y2", "19");
+	iconSvg.appendChild(iconLine);
+
+	const iconUpperCircle = document.createElementNS(
+		"http://www.w3.org/2000/svg",
+		"circle"
+	);
+	iconUpperCircle.setAttribute("cx", "6.5");
+	iconUpperCircle.setAttribute("cy", "6.5");
+	iconUpperCircle.setAttribute("r", "2.5");
+	iconSvg.appendChild(iconUpperCircle);
+
+	const iconLowerCircle = document.createElementNS(
+		"http://www.w3.org/2000/svg",
+		"circle"
+	);
+	iconLowerCircle.setAttribute("cx", "17.5");
+	iconLowerCircle.setAttribute("cy", "17.5");
+	iconLowerCircle.setAttribute("r", "2.5");
+	iconSvg.appendChild(iconLowerCircle);
+
+	return node.appendChild(iconSvg);
+}
+
 function renderView(pageStats: PageStats, container: Element): void {
 	container.empty();
 
-	const navHeader: HTMLDivElement = container.createDiv({
-		cls: "nav-header",
+	const viewContent: HTMLDivElement = container.createDiv({
+		cls: "view-content",
 	});
 
-	const navHeaderBtns = navHeader.createDiv({
-		cls: "nav-buttons-container",
+	const pageStatsContainer: HTMLDivElement = viewContent.createDiv({
+		cls: "page-stats-container",
 	});
 
-	// const sortBtn = navHeaderBtns.createDiv({
-	// 	cls: "clickable-icon nav-action-button",
-	// 	attr: {
-	// 		"aira-label": "Sortierreihenfolge ändern",
-	// 	},
-	// });
-	// sortBtn.addEventListener("click", (event) => {
-	// 	onSortTagsClicked(event);
-	// });
-	// setIcon(sortBtn, "arrow-up-narrow-wide");
+	const pageStatsContent: HTMLDivElement = viewContent.createDiv({
+		cls: "page-stats-content",
+	});
 
-	// const groupBtn = navHeaderBtns.createDiv({
-	// 	cls: "clickable-icon nav-action-button",
-	// 	attr: {
-	// 		"aira-label": "Zeige verschachtelte Tags",
-	// 	},
-	// });
-	// if (groupBtnActive) {
-	// 	groupBtn.addClass("is-active");
-	// }
-	// groupBtn.addEventListener("click", () => {
-	// 	onGroupTagsClicked();
-	// });
-	// setIcon(groupBtn, "folder-tree");
+	const pageStatsItem: HTMLDivElement = pageStatsContent.createDiv({
+		cls: "page-stats-content",
+	});
 
-	// const collapseBtn = navHeaderBtns.createDiv({
-	// 	cls: "clickable-icon nav-action-button",
-	// 	attr: {
-	// 		"aira-label": "Alles einklappen",
-	// 		"aria-disabled": !groupBtnActive,
-	// 	},
-	// });
-	// if (groupBtnActive) {
-	// 	collapseBtn.addEventListener("click", () => {
-	// 		onCollapseTagsClicked(getCollapsableTagList(tagTree), true);
-	// 	});
-	// }
-	// setIcon(collapseBtn, "chevrons-down-up");
+	const pageStatsEl: HTMLDivElement = pageStatsItem.createDiv({
+		cls: "page-stats",
+	});
 
-	// const pane: HTMLDivElement = container.createDiv({
-	// 	cls: "local-tags-pane node-insert-event",
-	// 	attr: { style: "position: relative;" },
-	// });
+	pageStatsEl.createDiv(
+		{
+			cls: "page-stat",
+			attr: { draggable: true },
+		},
+		(el) => {
+			el.createDiv(
+				{
+					cls: "page-stat-key",
+				},
+				(keyEl) => {
+					keyEl.createSpan(
+						{
+							cls: "page-stat-key-icon",
+						},
+						(iconEl) => renderSumIcon(iconEl)
+					),
+						keyEl.createSpan({
+							cls: "page-stat-key-name",
+							text: "Highlights",
+						});
+				}
+			),
+				el.createDiv({
+					cls: "page-stat-value",
+					text: pageStats.num_blocks_cite.toString(),
+				});
+		}
+	);
 
-	// const header: HTMLDivElement = pane.createDiv({
-	// 	cls: "tree-item-self is-clickable",
-	// 	attr: {
-	// 		"aria-label": "Click to collapse",
-	// 		"aria-label-position": "right",
-	// 	},
-	// });
-	// header.createSpan({ cls: "tree-item-icon collapse-icon" });
-	// header.createDiv({
-	// 	cls: "tree-item-inner",
-	// 	text: "Local Tags",
-	// });
-	// header.createDiv({ cls: "tree-item-flair-outer" }, (el) => {
-	// 	el.createSpan({
-	// 		cls: "tree-item-flair",
-	// 	});
-	// });
+	pageStatsEl.createDiv(
+		{
+			cls: "page-stat",
+			attr: { draggable: true },
+		},
+		(el) => {
+			el.createDiv(
+				{
+					cls: "page-stat-key",
+				},
+				(keyEl) => {
+					keyEl.createSpan(
+						{
+							cls: "page-stat-key-icon",
+						},
+						(iconEl) => renderSumIcon(iconEl)
+					),
+						keyEl.createSpan({
+							cls: "page-stat-key-name",
+							text: "Layer 1",
+						});
+				}
+			),
+				el.createDiv({
+					cls: "page-stat-value",
+					text: pageStats.num_words_cite.toString(),
+				});
+		}
+	);
 
-	// const content: HTMLDivElement = pane.createDiv({
-	// 	cls: "search-result-container",
-	// });
-	// content.createDiv({
-	// 	attr: {
-	// 		style: "width: 1px; height: 0.1px; margin-bottom: 0px;",
-	// 	},
-	// });
+	pageStatsEl.createDiv(
+		{
+			cls: "page-stat",
+			attr: { draggable: true },
+		},
+		(el) => {
+			el.createDiv(
+				{
+					cls: "page-stat-key",
+				},
+				(keyEl) => {
+					keyEl.createSpan(
+						{
+							cls: "page-stat-key-icon",
+						},
+						(iconEl) => renderSumIcon(iconEl)
+					),
+						keyEl.createSpan({
+							cls: "page-stat-key-name",
+							text: "Layer 2",
+						});
+				}
+			),
+				el.createDiv({
+					cls: "page-stat-value",
+					text: `${pageStats.num_words_bold.toString()} (${Math.round(
+						(pageStats.num_words_bold / pageStats.num_words_cite) *
+							100
+					).toString()}%)`,
+				});
+		}
+	);
 
-	// if (groupBtnActive) {
-	// 	createTagTreeView(
-	// 		content,
-	// 		sortTagTree(tagTree, sortMethod),
-	// 		collapsedTags,
-	// 		onCollapseTagsClicked
-	// 	);
-	// } else {
-	// 	createTagListView(
-	// 		content,
-	// 		sortTagList(getUserTagList(tagTree), sortMethod)
-	// 	);
-	// }
+	pageStatsEl.createDiv(
+		{
+			cls: "page-stat",
+			attr: { draggable: true },
+		},
+		(el) => {
+			el.createDiv(
+				{
+					cls: "page-stat-key",
+				},
+				(keyEl) => {
+					keyEl.createSpan(
+						{
+							cls: "page-stat-key-icon",
+						},
+						(iconEl) => renderSumIcon(iconEl)
+					),
+						keyEl.createSpan({
+							cls: "page-stat-key-name",
+							text: "Layer 3",
+						});
+				}
+			),
+				el.createDiv({
+					cls: "page-stat-value",
+					text: `${pageStats.num_words_highlighted.toString()} (${Math.round(
+						(pageStats.num_words_highlighted /
+							pageStats.num_words_cite) *
+							100
+					).toString()}%)`,
+				});
+		}
+	);
 }

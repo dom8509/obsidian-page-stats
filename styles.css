@@ -6,3 +6,84 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+.page-stats {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+}
+
+.page-stats .page-stat {
+	position: relative;
+	display: flex;
+	align-items: start;
+	padding: 0;
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.page-stats .page-stat .page-stat-key {
+	display: flex;
+	align-self: stretch;
+	align-items: flex-start;
+	flex-direction: row;
+	flex-shrink: 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+.page-stats .page-stat .page-stat-key .page-stat-key-icon {
+  display: flex;
+  align-items: center;
+  height: calc(var(--font-text-size) * 1.75);
+}
+
+.page-stats .page-stat .page-stat-key .page-stat-key-name {
+	border: none;
+	flex-grow: 1;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-weight: inherit;
+  padding: var(--size-4-1) var(--size-4-2);
+	height: calc(var(--font-text-size) * 1.75);
+	width: 9em;
+	display: flex;
+	align-items: center;
+	text-overflow: ellipsis;
+	overflow: hidden;
+}
+
+.page-stats .page-stat .page-stat-value {
+	display: flex;
+	flex: 1 1 auto;
+	gap: 4px;
+	align-items: center;
+	align-self: stretch;
+	min-height: calc(var(--font-text-size) * 1.75);
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding: var(--size-4-1) var(--size-4-2);
+	color: var(--text-normal);
+}
+
+.page-stats-container {
+	container-type: inline-size;
+	container-name: page-stats;
+}
+@container (width < 250px) {
+	.page-stat {
+		flex-wrap: wrap;
+	}
+	.page-stat .page-stat-key {
+		width: 100%;
+		border-bottom: 0;
+	}
+	.page-stat .page-stat-value {
+		margin-top: -2px;
+		padding-left: calc(var(--icon-xs) + 4px);
+	}
+}
+
+.page-stat-key-icon svg.svg-icon {
+	height: var(--icon-xs);
+	width: var(--icon-xs);
+	stroke-width: var(--icon-xs-stroke-width);
+}
