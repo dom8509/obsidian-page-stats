@@ -15,6 +15,7 @@ type PageStats = {
 	num_blocks_cite: number;
 	num_blocks_bold: number;
 	num_blocks_hightlighted: number;
+	num_comments: number;
 };
 
 export function createPageStats(): PageStats {
@@ -27,6 +28,7 @@ export function createPageStats(): PageStats {
 		num_blocks_cite: 0,
 		num_blocks_bold: 0,
 		num_blocks_hightlighted: 0,
+		num_comments: 0,
 	};
 }
 
@@ -122,6 +124,24 @@ class PageStatsView extends ItemView {
 		return content.match(regex) || [];
 	}
 
+	getComments(content: string): Array<string> {
+		console.log(content)
+		const metadataRx = /^---\n([\s\S]*?)\n---\n/gm;
+		const match = content.match(metadataRx);
+
+		console.log(match)
+
+		let contentTransformed = content;
+		if (match) {
+			contentTransformed = content.slice(match[0].length)
+		}
+
+		console.log(contentTransformed);
+
+		const regex = /((?:^[A-Za-z0-9].*$\n?)+)/gm;
+		return contentTransformed.match(regex) || [];
+	}
+
 	async getPageStats(): Promise<PageStats> {
 		const pageStats = createPageStats();
 		const activeFile: TFile | null = this.app.workspace.getActiveFile();
@@ -168,6 +188,7 @@ class PageStatsView extends ItemView {
 		pageStats.num_words_highlighted = this.getWords(
 			this.getHighlightedBlocks(content).join(" ")
 		).length;
+		pageStats.num_comments = this.getComments(content).length;
 
 		return pageStats;
 	}
@@ -300,6 +321,36 @@ function renderView(pageStats: PageStats, container: Element): void {
 				el.createDiv({
 					cls: "page-stat-value",
 					text: pageStats.num_blocks_cite.toString(),
+				});
+		}
+	);
+
+	pageStatsEl.createDiv(
+		{
+			cls: "page-stat",
+			attr: { draggable: true },
+		},
+		(el) => {
+			el.createDiv(
+				{
+					cls: "page-stat-key",
+				},
+				(keyEl) => {
+					keyEl.createSpan(
+						{
+							cls: "page-stat-key-icon",
+						},
+						(iconEl) => renderSumIcon(iconEl)
+					),
+						keyEl.createSpan({
+							cls: "page-stat-key-name",
+							text: "Comments",
+						});
+				}
+			),
+				el.createDiv({
+					cls: "page-stat-value",
+					text: pageStats.num_comments.toString(), //TODO
 				});
 		}
 	);
