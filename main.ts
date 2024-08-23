@@ -1,10 +1,18 @@
 import {
-    App, ItemView, Menu, Notice, Plugin, PluginManifest, Pos, setIcon, TAbstractFile, TagCache,
-    TFile, WorkspaceLeaf
+    App, ItemView, Menu, Notice, Plugin, PluginManifest, PluginSettingTab, Setting, TFile,
+    WorkspaceLeaf
 } from 'obsidian';
 
 const PAGE_STATS_VIEW: string = "page-stats-view";
 const ALL_VIEW: string = "all-view";
+
+interface PageStatsSettings {
+	order: string; // 0: Level 2: bold, level 3: highlighted
+}
+
+const DEFAULT_SETTINGS: PageStatsSettings = {
+	order: "default",
+};
 
 type PageStats = {
 	num_words: number;
@@ -33,11 +41,15 @@ export function createPageStats(): PageStats {
 }
 
 export default class PageStatsPlugin extends Plugin {
+	settings: PageStatsSettings;
+
 	constructor(app: App, manifest: PluginManifest) {
 		super(app, manifest);
 	}
 
 	onload(): void {
+		this.loadSettings();
+
 		this.registerView(
 			PAGE_STATS_VIEW,
 			(leaf) => new PageStatsView(leaf, this)
@@ -50,6 +62,9 @@ export default class PageStatsPlugin extends Plugin {
 				this.onloadPageStatsView();
 			},
 		});
+
+		// This adds a settings tab so the user can configure various aspects of the plugin
+		this.addSettingTab(new PageStatsSettingTab(this.app, this));
 	}
 
 	async onloadPageStatsView(): Promise<void> {
@@ -66,6 +81,57 @@ export default class PageStatsPlugin extends Plugin {
 
 	onunload(): void {
 		// console.log('unload page-stats plugin'); // disable plugin
+	}
+
+	async loadSettings() {
+		console.log("Loading Settings of PageStatsPlugin");
+		this.settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			await this.loadData()
+		);
+	}
+
+	async saveSettings() {
+		console.log("Saving Settings of PageStatsPlugin");
+		await this.saveData(this.settings);
+	}
+}
+
+class PageStatsSettingTab extends PluginSettingTab {
+	plugin: PageStatsPlugin;
+
+	constructor(app: App, plugin: PageStatsPlugin) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
+
+	display(): void {
+		const { containerEl } = this;
+
+		containerEl.empty();
+
+		new Setting(containerEl)
+			.setName("Summarization Level Methods")
+			.setDesc(
+				"Define which method is used in which layer of the pregressive summarization."
+			)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption(
+						"default",
+						"Level 2: bold - Level 3: highlighted (default)"
+					)
+					.addOption(
+						"reverse",
+						"Level 2: highlighted - Level 3: bold"
+					)
+					.setValue(this.plugin.settings.order)
+					.onChange(async (value) => {
+						this.plugin.settings.order = value;
+						await this.plugin.saveSettings();
+					});
+			});
 	}
 }
 
@@ -93,11 +159,11 @@ class PageStatsView extends ItemView {
 
 		this.icon = "file-pie-chart";
 
-		renderView(await this.getPageStats(), this.containerEl);
+		renderView(await this.getPageStats(), this.m_plugin.settings, this.containerEl);
 
 		this.registerEvent(
 			this.app.workspace.on("file-open", async () => {
-				renderView(await this.getPageStats(), this.containerEl);
+				renderView(await this.getPageStats(), this.m_plugin.settings, this.containerEl);
 			})
 		);
 	}
@@ -125,18 +191,18 @@ class PageStatsView extends ItemView {
 	}
 
 	getComments(content: string): Array<string> {
-		console.log(content)
+		//console.log(content)
 		const metadataRx = /^---\n([\s\S]*?)\n---\n/gm;
 		const match = content.match(metadataRx);
 
-		console.log(match)
+		//console.log(match)
 
 		let contentTransformed = content;
 		if (match) {
-			contentTransformed = content.slice(match[0].length)
+			contentTransformed = content.slice(match[0].length);
 		}
 
-		console.log(contentTransformed);
+		//console.log(contentTransformed);
 
 		const regex = /((?:^[A-Za-z0-9].*$\n?)+)/gm;
 		return contentTransformed.match(regex) || [];
@@ -272,7 +338,65 @@ function renderPercentIcon(node: Element): Element {
 	return node.appendChild(iconSvg);
 }
 
-function renderView(pageStats: PageStats, container: Element): void {
+function getLevelMethod(level: number, setting: PageStatsSettings): string {
+	if (level < 2 && level > 3) {
+		return "";
+	}
+
+	level = level - 2;
+	const levels = ["**", "=="];
+
+	if (setting.order == "default") {
+		return levels[level];
+	} else {
+		return levels.reverse()[level];
+	}
+}
+
+function getLevelValue(pageStats: PageStats, levelMethod: string): string {
+	if (levelMethod == "**") {
+		return `${pageStats.num_words_highlighted.toString()} (${Math.round(
+				(pageStats.num_words_highlighted /
+					pageStats.num_words_cite) *
+					100
+			).toString()}%)`
+	} else if (levelMethod == "==") {
+		return `${pageStats.num_words_bold.toString()} (${Math.round(
+				(pageStats.num_words_bold / pageStats.num_words_cite) * 100
+			).toString()}%)`;
+	} else {
+		return "n/a";
+	}
+} 
+
+function renderLevelEl(pageStats: PageStats, level: number, levelMethod: string, node: Element): Element {
+	console.log(`Creating Element Level ${level.toString()} (${levelMethod}) with value ${getLevelValue(pageStats, levelMethod)}`);
+	return (
+		node.createDiv(
+			{
+				cls: "page-stat-key",
+			},
+			(keyEl) => {
+				keyEl.createSpan(
+					{
+						cls: "page-stat-key-icon",
+					},
+					(iconEl) => renderSumIcon(iconEl)
+				),
+					keyEl.createSpan({
+						cls: "page-stat-key-name",
+						text: `Layer ${level.toString()} (${levelMethod})`,
+					});
+			}
+		),
+		node.createDiv({
+			cls: "page-stat-value",
+			text: getLevelValue(pageStats, levelMethod)
+		})
+	);
+}
+
+function renderView(pageStats: PageStats, settings: PageStatsSettings, container: Element): void {
 	container.empty();
 
 	const viewContent: HTMLDivElement = container.createDiv({
@@ -390,32 +514,7 @@ function renderView(pageStats: PageStats, container: Element): void {
 			cls: "page-stat",
 			attr: { draggable: true },
 		},
-		(el) => {
-			el.createDiv(
-				{
-					cls: "page-stat-key",
-				},
-				(keyEl) => {
-					keyEl.createSpan(
-						{
-							cls: "page-stat-key-icon",
-						},
-						(iconEl) => renderSumIcon(iconEl)
-					),
-						keyEl.createSpan({
-							cls: "page-stat-key-name",
-							text: "Layer 2",
-						});
-				}
-			),
-				el.createDiv({
-					cls: "page-stat-value",
-					text: `${pageStats.num_words_bold.toString()} (${Math.round(
-						(pageStats.num_words_bold / pageStats.num_words_cite) *
-							100
-					).toString()}%)`,
-				});
-		}
+		(el) => renderLevelEl(pageStats, 2, getLevelMethod(2, settings), el)
 	);
 
 	pageStatsEl.createDiv(
@@ -423,32 +522,6 @@ function renderView(pageStats: PageStats, container: Element): void {
 			cls: "page-stat",
 			attr: { draggable: true },
 		},
-		(el) => {
-			el.createDiv(
-				{
-					cls: "page-stat-key",
-				},
-				(keyEl) => {
-					keyEl.createSpan(
-						{
-							cls: "page-stat-key-icon",
-						},
-						(iconEl) => renderSumIcon(iconEl)
-					),
-						keyEl.createSpan({
-							cls: "page-stat-key-name",
-							text: "Layer 3",
-						});
-				}
-			),
-				el.createDiv({
-					cls: "page-stat-value",
-					text: `${pageStats.num_words_highlighted.toString()} (${Math.round(
-						(pageStats.num_words_highlighted /
-							pageStats.num_words_cite) *
-							100
-					).toString()}%)`,
-				});
-		}
+		(el) => renderLevelEl(pageStats, 3, getLevelMethod(3, settings), el)
 	);
 }
