@@ -1,5 +1,5 @@
 import {
-    App, ItemView, Menu, Notice, Plugin, PluginManifest, PluginSettingTab, Setting, TFile,
+    App, Events, ItemView, Menu, Notice, Plugin, PluginManifest, PluginSettingTab, Setting, TFile,
     WorkspaceLeaf
 } from 'obsidian';
 
@@ -42,12 +42,15 @@ export function createPageStats(): PageStats {
 
 export default class PageStatsPlugin extends Plugin {
 	settings: PageStatsSettings;
+	eventEmitter: Events;
 
 	constructor(app: App, manifest: PluginManifest) {
 		super(app, manifest);
 	}
 
 	onload(): void {
+		this.eventEmitter = new Events();
+
 		this.loadSettings();
 
 		this.registerView(
@@ -95,6 +98,8 @@ export default class PageStatsPlugin extends Plugin {
 	async saveSettings() {
 		console.log("Saving Settings of PageStatsPlugin");
 		await this.saveData(this.settings);
+		this.eventEmitter.trigger("settings-change");
+		//this.app.workspace.trigger('settings-changed');
 	}
 }
 
@@ -178,6 +183,17 @@ class PageStatsView extends ItemView {
 		this.registerEvent(
 			this.app.workspace.on("layout-change", async () => {
 				console.log("layout-change triggered");
+				renderView(
+					await this.getPageStats(),
+					this.m_plugin.settings,
+					this.containerEl
+				);
+			})
+		);
+
+		this.registerEvent(
+			this.m_plugin.eventEmitter.on("settings-change", async () => {
+				console.log("settings-change triggered");
 				renderView(
 					await this.getPageStats(),
 					this.m_plugin.settings,
