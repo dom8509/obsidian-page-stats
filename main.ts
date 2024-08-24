@@ -159,11 +159,30 @@ class PageStatsView extends ItemView {
 
 		this.icon = "file-pie-chart";
 
-		renderView(await this.getPageStats(), this.m_plugin.settings, this.containerEl);
+		renderView(
+			await this.getPageStats(),
+			this.m_plugin.settings,
+			this.containerEl
+		);
 
 		this.registerEvent(
 			this.app.workspace.on("file-open", async () => {
-				renderView(await this.getPageStats(), this.m_plugin.settings, this.containerEl);
+				renderView(
+					await this.getPageStats(),
+					this.m_plugin.settings,
+					this.containerEl
+				);
+			})
+		);
+
+		this.registerEvent(
+			this.app.workspace.on("layout-change", async () => {
+				console.log("layout-change triggered");
+				renderView(
+					await this.getPageStats(),
+					this.m_plugin.settings,
+					this.containerEl
+				);
 			})
 		);
 	}
@@ -244,15 +263,16 @@ class PageStatsView extends ItemView {
 
 		const content = await this.app.vault.read(activeFile);
 
-		pageStats.num_blocks_cite = this.getCiteBlocks(content).length;
+		const blocks_cite = this.getCiteBlocks(content);
+		pageStats.num_blocks_cite = blocks_cite.length;
 		pageStats.num_words_cite = this.getWords(
 			this.getCiteBlocks(content).join(" ")
 		).length;
 		pageStats.num_words_bold = this.getWords(
-			this.getBoldBlocks(content).join(" ")
+			this.getBoldBlocks(blocks_cite.join(" ")).join(" ")
 		).length;
 		pageStats.num_words_highlighted = this.getWords(
-			this.getHighlightedBlocks(content).join(" ")
+			this.getHighlightedBlocks(blocks_cite.join(" ")).join(" ")
 		).length;
 		pageStats.num_comments = this.getComments(content).length;
 
@@ -354,23 +374,35 @@ function getLevelMethod(level: number, setting: PageStatsSettings): string {
 }
 
 function getLevelValue(pageStats: PageStats, levelMethod: string): string {
-	if (levelMethod == "**") {
-		return `${pageStats.num_words_highlighted.toString()} (${Math.round(
-				(pageStats.num_words_highlighted /
-					pageStats.num_words_cite) *
-					100
-			).toString()}%)`
-	} else if (levelMethod == "==") {
-		return `${pageStats.num_words_bold.toString()} (${Math.round(
-				(pageStats.num_words_bold / pageStats.num_words_cite) * 100
-			).toString()}%)`;
-	} else {
-		return "n/a";
-	}
-} 
+	let value = 0;
 
-function renderLevelEl(pageStats: PageStats, level: number, levelMethod: string, node: Element): Element {
-	console.log(`Creating Element Level ${level.toString()} (${levelMethod}) with value ${getLevelValue(pageStats, levelMethod)}`);
+	if (levelMethod == "==") {
+		value = pageStats.num_words_highlighted;
+	} else if (levelMethod == "**") {
+		value = pageStats.num_words_bold;
+	}
+
+	if (value > 0) {
+		return `${value.toString()} (${Math.round(
+			(value / pageStats.num_words_cite) * 100
+		).toString()}%)`;
+	} else {
+		return `0 (0%)`;
+	}
+}
+
+function renderLevelEl(
+	pageStats: PageStats,
+	level: number,
+	levelMethod: string,
+	node: Element
+): Element {
+	console.log(
+		`Creating Element Level ${level.toString()} (${levelMethod}) with value ${getLevelValue(
+			pageStats,
+			levelMethod
+		)}`
+	);
 	return (
 		node.createDiv(
 			{
@@ -391,12 +423,16 @@ function renderLevelEl(pageStats: PageStats, level: number, levelMethod: string,
 		),
 		node.createDiv({
 			cls: "page-stat-value",
-			text: getLevelValue(pageStats, levelMethod)
+			text: getLevelValue(pageStats, levelMethod),
 		})
 	);
 }
 
-function renderView(pageStats: PageStats, settings: PageStatsSettings, container: Element): void {
+function renderView(
+	pageStats: PageStats,
+	settings: PageStatsSettings,
+	container: Element
+): void {
 	container.empty();
 
 	const viewContent: HTMLDivElement = container.createDiv({
